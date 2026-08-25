@@ -4,6 +4,7 @@ import { getSeatPosition } from '../../utils/seatLayout';
 import { useGameStore } from '../../store/gameStore';
 import PlayerSeat from './PlayerSeat';
 import PotDisplay from './PotDisplay';
+import BoardCards from './BoardCards';
 
 interface PokerTableProps {
   game: GameState;
@@ -21,7 +22,8 @@ export default function PokerTable({ game }: PokerTableProps) {
     <div className="relative mx-auto aspect-[16/10] w-full max-w-4xl">
       <div className="absolute inset-[10%] rounded-[50%] border-[6px] border-felt-950 bg-gradient-to-br from-felt-800 via-felt-700 to-felt-900 shadow-[0_20px_60px_rgba(0,0,0,0.6),inset_0_0_60px_rgba(0,0,0,0.35)]">
         <div className="absolute inset-3 rounded-[50%] border border-gold-600/20" />
-        <div className="absolute inset-0 flex items-center justify-center">
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <BoardCards round={game.currentRound} />
           <PotDisplay pots={game.pots} settings={game.settings} />
         </div>
       </div>
