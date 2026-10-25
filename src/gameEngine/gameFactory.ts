@@ -5,10 +5,11 @@ import { newId } from '../utils/id';
 export function createDefaultSettings(): GameSettings {
   return {
     gameName: 'Poker Night',
+    ranked: true,
     maxPlayers: MAX_PLAYERS_DEFAULT,
-    startingStack: 5000,
-    smallBlind: 50,
-    bigBlind: 100,
+    startingStack: 1000,
+    smallBlind: 10,
+    bigBlind: 20,
     ante: 0,
     chipValue: 1,
     currencySymbol: '₹',

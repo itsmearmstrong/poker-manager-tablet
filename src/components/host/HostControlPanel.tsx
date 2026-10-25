@@ -4,6 +4,9 @@ import { useGameStore } from '../../store/gameStore';
 import { formatChips } from '../../utils/format';
 import Modal from '../common/Modal';
 import ConfirmDialog from '../common/ConfirmDialog';
+import { useAndroidBack } from '../../utils/androidBack';
+import AddPlayerToGameModal from './AddPlayerToGameModal';
+import PlayerStats from '../stats/PlayerStats';
 
 interface HostControlPanelProps {
   game: GameState;
@@ -13,6 +16,9 @@ interface HostControlPanelProps {
 }
 
 type ActiveModal =
+  | { type: 'stats' }
+  | { type: 'addPlayer' }
+  | { type: 'renamePlayer'; playerId: string }
   | { type: 'adjustChips'; playerId: string }
   | { type: 'rebuy'; playerId: string }
   | { type: 'changeBlinds' }
@@ -29,6 +35,7 @@ export default function HostControlPanel({
   onOpenMoneyDashboard,
 }: HostControlPanelProps) {
   const [modal, setModal] = useState<ActiveModal>(null);
+  useAndroidBack(onClose);
   const pauseGame = useGameStore((s) => s.pauseGame);
   const resumeGame = useGameStore((s) => s.resumeGame);
   const undo = useGameStore((s) => s.undo);
@@ -43,6 +50,10 @@ export default function HostControlPanel({
   const inHand = game.status === 'in_progress' || game.status === 'paused';
   const canAdvance = inHand && game.currentPlayerSeat === null && game.currentRound !== 'showdown';
   const canReseat = game.status === 'hand_complete';
+  const hasEmptySeat = Array.from(
+    { length: 12 },
+    (_, index) => index + 1,
+  ).some((seat) => !game.players.some((player) => !player.removed && player.seat === seat));
 
   return (
     <>
@@ -53,7 +64,11 @@ export default function HostControlPanel({
         >
           <div className="mb-5 flex items-center justify-between">
             <h2 className="text-lg font-bold text-gold-400">Host Controls</h2>
-            <button onClick={onClose} className="text-ink-500 hover:text-white">
+            <button
+              onClick={onClose}
+              className="flex min-h-11 min-w-11 items-center justify-center rounded-full text-ink-500 hover:bg-ink-800 hover:text-white"
+              aria-label="Close host controls"
+            >
               ✕
             </button>
           </div>
@@ -86,11 +101,19 @@ export default function HostControlPanel({
           </Section>
 
           <Section title="Players">
+            <HostButton onClick={()=>setModal({type:'stats'})}>Player Stats</HostButton>
+            <HostButton onClick={() => setModal({ type: 'addPlayer' })} disabled={!hasEmptySeat}>
+              ＋ Add Player to Game
+            </HostButton>
+            {!hasEmptySeat && (
+              <p className="mb-2 text-xs text-ink-500">All 12 seats are occupied.</p>
+            )}
             {!canReseat && (
               <p className="mb-2 text-xs text-ink-500">Seats can be reordered between hands.</p>
             )}
             <div className="space-y-2">
               {[...game.players]
+                .filter((p) => !p.removed)
                 .sort((a, b) => a.seat - b.seat)
                 .map((p, i, sorted) => (
                   <div key={p.id} className="rounded-lg border border-ink-700 bg-ink-800 p-2.5">
@@ -121,6 +144,9 @@ export default function HostControlPanel({
                       <span className="text-xs text-ink-500">{formatChips(p.chips, game.settings)}</span>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
+                      <SmallButton onClick={() => setModal({ type: 'renamePlayer', playerId: p.id })}>
+                        Edit Name
+                      </SmallButton>
                       <SmallButton onClick={() => setModal({ type: 'adjustChips', playerId: p.id })}>
                         Adjust Chips
                       </SmallButton>
@@ -141,8 +167,16 @@ export default function HostControlPanel({
         </div>
       </div>
 
+      {modal?.type === 'addPlayer' && (
+        <AddPlayerToGameModal game={game} onClose={() => setModal(null)} />
+      )}
+      {modal?.type === 'stats' && <PlayerStats onClose={()=>setModal(null)} />}
+
       {modal?.type === 'adjustChips' && (
         <AdjustChipsModal game={game} playerId={modal.playerId} onClose={() => setModal(null)} />
+      )}
+      {modal?.type === 'renamePlayer' && (
+        <RenamePlayerModal game={game} playerId={modal.playerId} onClose={() => setModal(null)} />
       )}
       {modal?.type === 'rebuy' && (
         <RebuyModal game={game} playerId={modal.playerId} onClose={() => setModal(null)} />
@@ -218,7 +252,7 @@ function HostButton({
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`w-full rounded-lg border px-3 py-2 text-left text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-30 ${
+      className={`min-h-11 w-full rounded-lg border px-3 py-2 text-left text-sm font-medium transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-30 ${
         danger
           ? 'border-red-800 text-red-400 hover:bg-red-950'
           : 'border-ink-600 text-white hover:bg-ink-700'
@@ -241,7 +275,7 @@ function SmallButton({
   return (
     <button
       onClick={onClick}
-      className={`rounded-md border px-2 py-1 text-xs font-medium ${
+      className={`min-h-10 rounded-md border px-3 py-1 text-xs font-medium ${
         danger
           ? 'border-red-800 text-red-400 hover:bg-red-950'
           : 'border-ink-600 text-ink-500 hover:bg-ink-700 hover:text-white'
@@ -249,6 +283,52 @@ function SmallButton({
     >
       {children}
     </button>
+  );
+}
+
+function RenamePlayerModal({ game, playerId, onClose }: { game: GameState; playerId: string; onClose: () => void }) {
+  const renamePlayer = useGameStore((state) => state.renamePlayer);
+  const player = game.players.find((candidate) => candidate.id === playerId)!;
+  const [name, setName] = useState(player.name);
+  const trimmedName = name.trim();
+
+  return (
+    <Modal title="Edit Player Name" onClose={onClose} width="max-w-sm" alignTop>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!trimmedName || trimmedName === player.name) return;
+          renamePlayer(playerId, trimmedName);
+          onClose();
+        }}
+      >
+        <label className="mb-1 block text-xs text-ink-500">Player name</label>
+        <input
+          type="text"
+          value={name}
+          maxLength={24}
+          autoFocus
+          onChange={(event) => setName(event.target.value)}
+          className="mb-4 w-full rounded-lg border border-ink-600 bg-ink-800 px-3 py-3 text-base text-white outline-none focus:border-gold-500"
+        />
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="min-h-11 flex-1 rounded-lg border border-ink-600 py-2.5 text-sm text-white hover:bg-ink-700"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={!trimmedName || trimmedName === player.name}
+            className="min-h-11 flex-1 rounded-lg bg-gold-500 py-2.5 text-sm font-bold text-ink-950 hover:bg-gold-400 disabled:cursor-not-allowed disabled:opacity-30"
+          >
+            SAVE NAME
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 

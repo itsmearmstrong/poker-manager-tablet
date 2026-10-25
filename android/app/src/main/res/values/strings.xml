@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="device_admin_description">Allows Poker Manager to run in dedicated-device mode.</string>
+    <string name="app_name">Poker Manager</string>
+    <string name="title_activity_main">Poker Manager</string>
+    <string name="package_name">com.pokermanager.app</string>
+    <string name="custom_url_scheme">com.pokermanager.app</string>
+</resources>

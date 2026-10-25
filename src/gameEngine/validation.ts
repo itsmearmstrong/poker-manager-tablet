@@ -29,6 +29,9 @@ export function getLegalActions(state: GameState, player: Player): ActionType[] 
     if (player.chips > 0) {
       actions.push(state.currentBetAmount === 0 ? 'bet' : 'raise');
     }
+    if (state.currentRound !== 'preflop') {
+      actions.push('fold');
+    }
   } else {
     actions.push('call');
     if (player.chips > toCall) actions.push('raise');

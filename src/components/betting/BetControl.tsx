@@ -15,20 +15,27 @@ interface BetControlProps {
 
 export default function BetControl({ game, player, mode, onConfirm, onCancel }: BetControlProps) {
   const bounds = getBetBounds(game, player);
-  const [amount, setAmount] = useState(bounds.min);
+  // The engine validates raises as the total bet for the round. At the table,
+  // displaying the additional raise is clearer (e.g. raise by 20, to 40).
+  const amountOffset = mode === 'raise' ? game.currentBetAmount : 0;
+  const displayMin = bounds.min - amountOffset;
+  const displayMax = bounds.max - amountOffset;
+  const [amountText, setAmountText] = useState(String(displayMin));
   const { settings } = game;
   const pot = livePotTotal(game.players);
 
   const step = Math.max(1, settings.bigBlind);
-  const clamp = (v: number) => Math.min(bounds.max, Math.max(bounds.min, Math.round(v)));
+  const clamp = (v: number) => Math.min(displayMax, Math.max(displayMin, Math.round(v)));
+  const amount = clamp(Number(amountText) || displayMin);
+  const setAmount = (value: number) => setAmountText(String(clamp(value)));
 
-  const quickOptions: { label: string; to: number }[] = [
-    { label: 'MIN', to: bounds.min },
-    { label: '½ POT', to: game.currentBetAmount + pot * 0.5 },
-    { label: '¾ POT', to: game.currentBetAmount + pot * 0.75 },
-    { label: 'POT', to: game.currentBetAmount + pot },
-    { label: '2× POT', to: game.currentBetAmount + pot * 2 },
-    { label: 'ALL-IN', to: bounds.max },
+  const quickOptions: { label: string; amount: number }[] = [
+    { label: 'MIN', amount: displayMin },
+    { label: '½ POT', amount: game.currentBetAmount + pot * 0.5 - amountOffset },
+    { label: '¾ POT', amount: game.currentBetAmount + pot * 0.75 - amountOffset },
+    { label: 'POT', amount: game.currentBetAmount + pot - amountOffset },
+    { label: '2× POT', amount: game.currentBetAmount + pot * 2 - amountOffset },
+    { label: 'ALL-IN', amount: displayMax },
   ];
 
   return (
@@ -39,22 +46,44 @@ export default function BetControl({ game, player, mode, onConfirm, onCancel }: 
         <Row label="Your Stack" value={formatChips(player.chips + player.currentBet, settings)} />
       </div>
 
-      <p className="mb-1 text-center text-xs uppercase tracking-wide text-ink-500">Amount (total this round)</p>
+      <p className="mb-1 text-center text-xs uppercase tracking-wide text-ink-500">
+        {mode === 'raise' ? 'Raise by' : 'Bet amount'}
+      </p>
       <div className="mb-3 flex items-center justify-center gap-3">
         <RoundButton onClick={() => setAmount(clamp(amount - step))}>-</RoundButton>
-        <span className="min-w-[110px] text-center text-2xl font-bold text-gold-400">
-          {formatChips(amount, settings)}
-        </span>
+        <div className="relative min-w-[150px]">
+          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-2xl font-bold text-gold-400">
+            {settings.currencySymbol}
+          </span>
+          <input
+            type="number"
+            inputMode="numeric"
+            aria-label={mode === 'raise' ? 'Raise by amount' : 'Bet amount'}
+            value={amountText}
+            min={displayMin}
+            max={displayMax}
+            onFocus={(event) => event.currentTarget.select()}
+            onChange={(event) => setAmountText(event.target.value)}
+            onBlur={() => setAmount(amount)}
+            className="h-12 w-full appearance-none rounded-lg border border-gold-600/60 bg-ink-900 px-8 text-center text-2xl font-bold text-gold-400 outline-none focus:border-gold-400"
+          />
+        </div>
         <RoundButton onClick={() => setAmount(clamp(amount + step))}>+</RoundButton>
       </div>
 
+      {mode === 'raise' && (
+        <p className="mb-3 text-center text-sm text-ink-500">
+          Total bet: <span className="font-semibold text-white">{formatChips(amount + amountOffset, settings)}</span>
+        </p>
+      )}
+
       <input
         type="range"
-        min={bounds.min}
-        max={bounds.max}
+        min={displayMin}
+        max={displayMax}
         step={1}
         value={amount}
-        onChange={(e) => setAmount(clamp(Number(e.target.value)))}
+        onChange={(e) => setAmount(Number(e.target.value))}
         className="mb-4 w-full accent-yellow-500"
       />
 
@@ -62,24 +91,12 @@ export default function BetControl({ game, player, mode, onConfirm, onCancel }: 
         {quickOptions.map((opt) => (
           <button
             key={opt.label}
-            onClick={() => setAmount(clamp(opt.to))}
+            onClick={() => setAmount(opt.amount)}
             className="rounded-lg border border-ink-600 bg-ink-900 py-1.5 text-xs font-medium text-white hover:border-gold-500 hover:text-gold-400"
           >
             {opt.label}
           </button>
         ))}
-      </div>
-
-      <div className="mb-4">
-        <label className="mb-1 block text-xs text-ink-500">Or enter exact amount</label>
-        <input
-          type="number"
-          value={amount}
-          min={bounds.min}
-          max={bounds.max}
-          onChange={(e) => setAmount(clamp(Number(e.target.value)))}
-          className="w-full rounded-lg border border-ink-600 bg-ink-800 px-3 py-2 text-white outline-none focus:border-gold-500"
-        />
       </div>
 
       <div className="flex gap-2">
@@ -90,7 +107,7 @@ export default function BetControl({ game, player, mode, onConfirm, onCancel }: 
           Cancel
         </button>
         <button
-          onClick={() => onConfirm(amount)}
+          onClick={() => onConfirm(amount + amountOffset)}
           className="flex-1 rounded-lg bg-gold-500 py-2.5 text-sm font-bold text-ink-950 hover:bg-gold-400"
         >
           CONFIRM {mode === 'bet' ? 'BET' : 'RAISE'}
@@ -113,7 +130,7 @@ function RoundButton({ children, onClick }: { children: React.ReactNode; onClick
   return (
     <button
       onClick={onClick}
-      className="flex h-9 w-9 items-center justify-center rounded-full border border-ink-600 text-lg font-bold text-white hover:border-gold-500 hover:text-gold-400"
+      className="flex h-11 w-11 items-center justify-center rounded-full border border-ink-600 text-lg font-bold text-white hover:border-gold-500 hover:text-gold-400"
     >
       {children}
     </button>

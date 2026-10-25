@@ -22,3 +22,35 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Private configuration, credentials, and signing keys
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.jks
+*.keystore
+keystore.properties
+
+# Local device data, player/session exports, and inspection captures
+/backups/
+/device-data/
+/screenshots/
+/captures/
+poker-history*.json
+poker-before-*/
+app-data.tar
+*.sqlite
+*.sqlite3
+*.db
+*.hprof
+stats-check.png
+poker-*.png
+window.xml
+poker-window.xml
+
+# Local build caches and outputs
+*.tsbuildinfo
+.cache/
+coverage/

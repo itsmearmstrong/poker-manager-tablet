@@ -16,19 +16,24 @@ const CARD_COUNT: Record<Round, number> = {
 
 export default function BoardCards({ round }: BoardCardsProps) {
   const count = CARD_COUNT[round];
-  if (count === 0) return null;
+  const label = round === 'preflop' ? 'PRE-FLOP' : round.toUpperCase();
 
   return (
-    <div className="flex justify-center gap-1.5 pb-2 [perspective:600px]">
-      {Array.from({ length: count }, (_, i) => (
-        <div
-          key={i}
-          className="animate-card-deal h-11 w-8 rounded-md border border-gold-600/40 bg-gradient-to-br from-ink-700 to-ink-900 shadow-md sm:h-14 sm:w-10"
-          style={{ animationDelay: `${i * 90}ms` }}
-        >
-          <div className="m-1 h-[calc(100%-0.5rem)] rounded-sm border border-gold-500/20 bg-[repeating-linear-gradient(135deg,rgba(232,189,78,0.08)_0px,rgba(232,189,78,0.08)_2px,transparent_2px,transparent_6px)]" />
+    <div className="flex flex-col items-center pb-2 [perspective:600px]">
+      <p className="mb-2 text-sm font-bold tracking-[0.2em] text-gold-400">{label}</p>
+      {count > 0 && (
+        <div className="flex justify-center gap-1.5">
+          {Array.from({ length: count }, (_, i) => (
+            <div
+              key={i}
+              className="animate-card-deal h-11 w-8 rounded-md border border-gold-600/40 bg-gradient-to-br from-ink-700 to-ink-900 shadow-md sm:h-14 sm:w-10"
+              style={{ animationDelay: `${i * 90}ms` }}
+            >
+              <div className="m-1 h-[calc(100%-0.5rem)] rounded-sm border border-gold-500/20 bg-[repeating-linear-gradient(135deg,rgba(232,189,78,0.08)_0px,rgba(232,189,78,0.08)_2px,transparent_2px,transparent_6px)]" />
+            </div>
+          ))}
         </div>
-      ))}
+      )}
     </div>
   );
 }

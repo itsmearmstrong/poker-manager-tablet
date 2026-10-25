@@ -9,6 +9,7 @@ interface MoneyDashboardProps {
 
 export default function MoneyDashboard({ game, onClose }: MoneyDashboardProps) {
   const rows = [...game.players]
+    .filter((p) => !p.removed)
     .sort((a, b) => a.seat - b.seat)
     .map((p) => {
       const totalBuyIn = p.initialBuyIn + p.totalRebuyAmount;
@@ -26,7 +27,7 @@ export default function MoneyDashboard({ game, onClose }: MoneyDashboardProps) {
               <th className="py-2 pr-3">Buy-in</th>
               <th className="py-2 pr-3">Rebuys</th>
               <th className="py-2 pr-3">Stack</th>
-              <th className="py-2">Profit/Loss</th>
+              <th className="py-2">Stack − funding</th>
             </tr>
           </thead>
           <tbody>

@@ -9,7 +9,7 @@ export interface TablePositions {
 }
 
 function activePlayers(players: Player[]): Player[] {
-  return players.filter((p) => p.status === 'active');
+  return players.filter((p) => p.status === 'active' && p.chips > 0 && !p.sittingOut);
 }
 
 /** Assigns dealer/SB/BB for the very first hand of the game: lowest occupied seat deals. */
@@ -17,6 +17,13 @@ export function assignInitialPositions(players: Player[]): TablePositions {
   const active = activePlayers(players);
   const seats = occupiedSeats(active);
   const dealerSeat = seats[0];
+  return computePositionsFromDealer(active, dealerSeat);
+}
+
+/** Assigns first-hand positions from the dealer explicitly selected during setup. */
+export function assignPositionsFromDealer(players: Player[], dealerSeat: number): TablePositions {
+  const active = activePlayers(players);
+  if (!active.some((player) => player.seat === dealerSeat)) return assignInitialPositions(players);
   return computePositionsFromDealer(active, dealerSeat);
 }
 

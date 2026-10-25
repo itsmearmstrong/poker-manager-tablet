@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import type { ActionType, GameState } from '../../types/poker';
 import { getLegalActions } from '../../gameEngine/validation';
 import { amountToCall } from '../../gameEngine/potManager';
@@ -26,6 +26,9 @@ const ACTION_STYLE: Record<ActionType, string> = {
 
 export default function ActionBar({ game }: ActionBarProps) {
   const playerAction = useGameStore((s) => s.playerAction);
+  const callAllPreflop = useGameStore((state) => state.callAllPreflop);
+  const undo = useGameStore((state) => state.undo);
+  const canUndo = useGameStore((state) => state.canUndo());
   const [betMode, setBetMode] = useState<'bet' | 'raise' | null>(null);
 
   const player = game.players.find((p) => p.seat === game.currentPlayerSeat);
@@ -56,14 +59,32 @@ export default function ActionBar({ game }: ActionBarProps) {
   return (
     <>
       <div className="flex flex-wrap items-center justify-center gap-2 px-3 py-3 sm:gap-3">
+        <button
+          type="button"
+          onClick={undo}
+          disabled={!canUndo}
+          className="min-w-[76px] rounded-xl border border-ink-600 px-3 py-3 text-sm font-bold tracking-wide text-ink-300 transition hover:border-gold-600/60 hover:bg-ink-800 hover:text-gold-400 active:scale-95 disabled:cursor-not-allowed disabled:opacity-30"
+        >
+          ↩ UNDO
+        </button>
         {ACTION_ORDER.filter((t) => legal.includes(t)).map((type) => (
-          <button
-            key={type}
-            onClick={() => handleClick(type)}
-            className={`min-w-[92px] rounded-xl px-4 py-3 text-sm font-bold tracking-wide shadow-md transition active:scale-95 ${ACTION_STYLE[type]}`}
-          >
-            {label(type)}
-          </button>
+          <Fragment key={type}>
+            <button
+              onClick={() => handleClick(type)}
+              className={`min-w-[92px] rounded-xl px-4 py-3 text-sm font-bold tracking-wide shadow-md transition active:scale-95 ${ACTION_STYLE[type]}`}
+            >
+              {label(type)}
+            </button>
+            {type === 'call' && game.currentRound === 'preflop' && (
+              <button
+                type="button"
+                onClick={callAllPreflop}
+                className="min-w-[104px] rounded-xl bg-felt-600 px-4 py-3 text-sm font-bold tracking-wide text-white shadow-md transition active:scale-95"
+              >
+                CALL ALL
+              </button>
+            )}
+          </Fragment>
         ))}
       </div>
 

@@ -5,16 +5,22 @@ interface PlayerSeatProps {
   player: Player;
   settings: GameSettings;
   isCurrentTurn: boolean;
+  isWaitingForNextHand?: boolean;
 }
 
-export default function PlayerSeat({ player, settings, isCurrentTurn }: PlayerSeatProps) {
+export default function PlayerSeat({
+  player,
+  settings,
+  isCurrentTurn,
+  isWaitingForNextHand = false,
+}: PlayerSeatProps) {
   const isOut = player.status === 'out';
   const isFolded = player.folded;
   const dimmed = isOut || isFolded;
 
   return (
     <div
-      className={`w-36 sm:w-40 rounded-xl border-2 bg-ink-900/95 px-3 py-2 shadow-lg backdrop-blur transition-all ${
+      className={`player-seat w-36 sm:w-40 rounded-xl border-2 bg-ink-900 px-3 py-2 shadow-md transition-colors duration-150 ${
         isCurrentTurn
           ? 'border-gold-500 animate-pulse-turn'
           : dimmed
@@ -22,51 +28,41 @@ export default function PlayerSeat({ player, settings, isCurrentTurn }: PlayerSe
             : 'border-ink-600'
       } ${isFolded ? 'animate-fold-out' : ''}`}
     >
-      <div className="mb-1 flex items-center justify-between">
-        <span className="flex items-center gap-1 text-[10px] font-semibold text-ink-500">
-          <span className="flex h-4 w-4 items-center justify-center rounded-full bg-ink-700 text-[9px] text-white">
+      <div className="mb-1 flex min-w-0 items-center justify-between">
+        <div className="flex min-w-0 items-center">
+          <span className="mr-1.5 flex h-5 w-5 flex-none items-center justify-center rounded-full bg-ink-700 text-[10px] font-semibold text-white">
             {player.seat}
           </span>
-          SEAT {player.seat}
-        </span>
-        <div className="flex gap-1">
+          <p className={`truncate text-sm font-semibold ${isOut ? 'text-ink-500 line-through' : 'text-white'}`}>
+            {player.name}
+          </p>
+        </div>
+        <div className="ml-1 flex flex-none">
           {player.isDealer && <Badge label="D" title="Dealer" color="bg-white text-ink-950" />}
           {player.isSmallBlind && <Badge label="SB" title="Small Blind" color="bg-felt-600 text-white" />}
           {player.isBigBlind && <Badge label="BB" title="Big Blind" color="bg-felt-700 text-white" />}
         </div>
       </div>
 
-      <p className={`truncate text-sm font-semibold ${isOut ? 'text-ink-500 line-through' : 'text-white'}`}>
-        {player.name}
-      </p>
-      <p className="text-xs text-ink-500">
-        Chips: <span className="font-medium text-gold-400">{formatChips(player.chips, settings)}</span>
-      </p>
-
-      {player.currentBet > 0 && !isOut && (
-        <p className="mt-0.5 text-xs text-white">
-          Bet: <span className="font-semibold text-gold-500">{formatChips(player.currentBet, settings)}</span>
+      <div className="flex min-w-0 items-center justify-between whitespace-nowrap text-xs">
+        <p className="font-semibold text-gold-400" title="Chips">
+          {formatChips(player.chips, settings)}
         </p>
-      )}
-
-      <div className="mt-1 flex flex-wrap gap-1">
-        {isCurrentTurn && !isOut && (
-          <span className="rounded bg-gold-500 px-1.5 py-0.5 text-[10px] font-bold text-ink-950">
-            YOUR TURN
-          </span>
-        )}
-        {player.allIn && !isOut && (
-          <span className="rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">ALL-IN</span>
-        )}
-        {isFolded && !isOut && (
-          <span className="rounded bg-ink-700 px-1.5 py-0.5 text-[10px] font-bold text-ink-500">FOLDED</span>
-        )}
-        {isOut && (
-          <span className="rounded bg-red-950 px-1.5 py-0.5 text-[10px] font-bold text-red-400">OUT</span>
-        )}
-        {player.sittingOut && !isOut && (
-          <span className="rounded bg-ink-700 px-1.5 py-0.5 text-[10px] font-bold text-ink-500">SITTING OUT</span>
-        )}
+        {isOut ? (
+          <StatusBadge label="OUT" color="bg-red-950 text-red-400" />
+        ) : isFolded ? (
+          <StatusBadge label="FOLDED" color="bg-ink-700 text-ink-500" />
+        ) : player.allIn ? (
+          <StatusBadge label="ALL-IN" color="bg-red-600 text-white" />
+        ) : player.sittingOut ? (
+          <StatusBadge label="SIT OUT" color="bg-ink-700 text-ink-500" />
+        ) : isWaitingForNextHand ? (
+          <StatusBadge label="NEXT HAND" color="bg-gold-500/15 text-gold-400" />
+        ) : player.currentBet > 0 ? (
+          <p className="ml-2 text-[10px] font-semibold text-ink-500">
+            BET <span className="text-gold-500">{formatChips(player.currentBet, settings)}</span>
+          </p>
+        ) : null}
       </div>
     </div>
   );
@@ -76,8 +72,16 @@ function Badge({ label, title, color }: { label: string; title: string; color: s
   return (
     <span
       title={title}
-      className={`flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold ${color}`}
+      className={`ml-1 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold ${color}`}
     >
+      {label}
+    </span>
+  );
+}
+
+function StatusBadge({ label, title, color }: { label: string; title?: string; color: string }) {
+  return (
+    <span title={title} className={`ml-1 rounded px-1.5 py-0.5 text-[9px] font-bold ${color}`}>
       {label}
     </span>
   );

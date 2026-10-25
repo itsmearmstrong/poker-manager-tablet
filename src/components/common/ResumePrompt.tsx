@@ -24,7 +24,7 @@ export default function ResumePrompt() {
           </button>
           <button
             onClick={discardSavedGame}
-            className="rounded-xl border border-ink-600 py-3 font-medium text-white hover:bg-ink-700"
+            className="rounded-xl border border-ink-600 bg-ink-900 py-3 font-medium text-white hover:bg-ink-700"
           >
             START NEW GAME
           </button>

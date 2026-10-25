@@ -21,6 +21,8 @@ export type ActionType =
   | 'all_in';
 
 export interface Player {
+  removed?: boolean;
+  profileId?: string;
   id: string;
   name: string;
   seat: number;
@@ -48,6 +50,7 @@ export interface Blinds {
 }
 
 export interface GameSettings {
+  ranked?: boolean; // Missing in older saves means ranked, preserving existing behavior.
   gameName: string;
   maxPlayers: number;
   startingStack: number;
@@ -89,6 +92,7 @@ export interface PlayerHandSnapshot {
 }
 
 export interface HandHistoryEntry {
+  lifetime?: import('./stats').CompletedHand;
   handNumber: number;
   dealerSeat: number;
   smallBlindSeat: number;
@@ -102,6 +106,7 @@ export interface HandHistoryEntry {
 }
 
 export interface GameState {
+  handAccounting?: import('./stats').HandAccounting;
   gameId: string;
   gameName: string;
   status: GameStatus;
@@ -124,5 +129,5 @@ export interface GameState {
   updatedAt: number;
 }
 
-export const MAX_PLAYERS_DEFAULT = 10;
+export const MAX_PLAYERS_DEFAULT = 12;
 export const MIN_PLAYERS_TO_START = 2;

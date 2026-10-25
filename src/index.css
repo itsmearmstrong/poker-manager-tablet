@@ -1,5 +1,29 @@
 @import "tailwindcss";
 
+.stats-button { min-height:48px; padding:10px 16px; margin:4px; border:1px solid #c99a2e; border-radius:8px; color:#f5d477; font-size:16px; }
+.stats-panel { padding:16px; margin:8px 0; border:1px solid #313644; border-radius:8px; color:#e8e9ec; background:#12141a; }
+.stats-input { display:block; width:100%; min-height:48px; padding:10px; background:#12141a; color:#e8e9ec; border:1px solid #313644; border-radius:8px; }
+.stats-scroll { scrollbar-width:none; -ms-overflow-style:none; -webkit-overflow-scrolling:touch; }
+.stats-scroll::-webkit-scrollbar { display:none; width:0; height:0; }
+.stats-table { table-layout:fixed; border-collapse:separate; border-spacing:0; border:1px solid #313644; border-radius:12px; background:#12141a; }
+.stats-table th, .stats-table td { padding:14px 24px; }
+.stats-table th:last-child, .stats-table td:last-child { padding-right:40px; }
+.stats-table th { position:sticky; top:0; z-index:1; background:#1a1d26; border-bottom:1px solid #313644; }
+.stats-table th:first-child { width:52%; border-top-left-radius:12px; }
+.stats-table th:last-child { border-top-right-radius:12px; }
+.stats-table td { border-bottom:1px solid #313644; vertical-align:middle; overflow-wrap:break-word; }
+.stats-table td:first-child { font-weight:600; }
+.stats-table td:last-child { font-variant-numeric:tabular-nums; font-size:18px; line-height:1.5; }
+.stats-table tbody tr:last-child td { border-bottom:0; }
+.stats-table tbody tr:last-child td:first-child { border-bottom-left-radius:12px; }
+.stats-table tbody tr:last-child td:last-child { border-bottom-right-radius:12px; }
+.stats-table tbody tr:nth-child(even) { background:rgba(255,255,255,0.025); }
+@media (max-width:600px) {
+  .stats-table th, .stats-table td { padding:12px; }
+  .stats-table th:last-child, .stats-table td:last-child { padding-right:20px; }
+  .stats-table td:last-child { font-size:16px; }
+}
+
 @theme {
   --color-felt-950: #06251c;
   --color-felt-900: #0a3327;
@@ -33,10 +57,57 @@ body {
   color: #e8e9ec;
   font-family: var(--font-display);
   -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  overscroll-behavior: none;
+}
+
+/* Console text should not trigger WebView selection handles. Editable fields
+   retain normal selection so names and numeric values remain easy to replace. */
+input,
+textarea,
+[contenteditable="true"] {
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 * {
   box-sizing: border-box;
+}
+
+button,
+input,
+label {
+  touch-action: manipulation;
+}
+
+button {
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: transparent;
+}
+
+.ended-screen {
+  -webkit-overflow-scrolling: touch;
+  -ms-overflow-style: none;
+  overscroll-behavior-y: contain;
+  scrollbar-width: none;
+  scroll-behavior: smooth;
+  touch-action: pan-y;
+  transform: translateZ(0);
+}
+
+.ended-screen::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+button:not([class*=" bg-"]):not([class^="bg-"]) {
+  background-color: var(--color-ink-900);
 }
 
 ::-webkit-scrollbar {
@@ -66,20 +137,10 @@ body {
   }
 }
 .animate-chip-pop {
-  animation: chip-pop 0.28s ease-out;
-}
-
-@keyframes pulse-turn {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 rgba(232, 189, 78, 0.55);
-  }
-  50% {
-    box-shadow: 0 0 0 8px rgba(232, 189, 78, 0);
-  }
+  animation: chip-pop 0.14s ease-out;
 }
 .animate-pulse-turn {
-  animation: pulse-turn 1.6s ease-in-out infinite;
+  box-shadow: 0 0 0 4px rgba(232, 189, 78, 0.52);
 }
 
 @keyframes fold-out {
@@ -93,7 +154,7 @@ body {
   }
 }
 .animate-fold-out {
-  animation: fold-out 0.35s ease-out forwards;
+  animation: fold-out 0.14s ease-out forwards;
 }
 
 @keyframes slide-in-fade {
@@ -107,7 +168,7 @@ body {
   }
 }
 .animate-slide-in {
-  animation: slide-in-fade 0.2s ease-out;
+  animation: slide-in-fade 0.12s ease-out;
 }
 
 @keyframes card-deal {
@@ -125,7 +186,7 @@ body {
   }
 }
 .animate-card-deal {
-  animation: card-deal 0.4s ease-out both;
+  animation: card-deal 0.15s ease-out both;
 }
 
 @keyframes pot-award {
@@ -140,5 +201,164 @@ body {
   }
 }
 .animate-pot-award {
-  animation: pot-award 0.5s ease-in-out;
+  animation: pot-award 0.18s ease-out;
+}
+
+@supports not (aspect-ratio: 1) {
+  .poker-table {
+    height: 0;
+    padding-bottom: 62.5%;
+  }
+}
+
+/* Chromium 63 does not support the individual translate property used by Tailwind 4. */
+.poker-table > [draggable] {
+  transform: translate(-50%, -50%);
+}
+
+/* Flex gap and :where() are unavailable in the tablet's Chromium 63 WebView. */
+.game-header .flex.gap-2 > * + *,
+.game-controls .flex.gap-2 > * + *,
+.setup-players .flex.gap-2 > * + * {
+  margin-left: 8px;
+}
+
+.space-y-1 > * + * {
+  margin-top: 4px;
+}
+
+.space-y-1\.5 > * + * {
+  margin-top: 6px;
+}
+
+.space-y-2 > * + * {
+  margin-top: 8px;
+}
+
+.space-y-3 > * + * {
+  margin-top: 12px;
+}
+
+.space-y-4 > * + * {
+  margin-top: 16px;
+}
+
+@media (orientation: landscape) and (min-width: 800px) and (max-height: 850px) {
+  html,
+  body,
+  #root {
+    overflow: hidden;
+  }
+
+  .setup-screen {
+    display: flex;
+    height: 100%;
+    max-width: 1280px;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 12px 20px;
+  }
+
+  .setup-heading {
+    margin-bottom: 10px;
+  }
+
+  .setup-heading h1 {
+    font-size: 1.5rem;
+    line-height: 1.75rem;
+  }
+
+  .setup-grid {
+    display: grid;
+    min-height: 0;
+    flex: 1;
+    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+    gap: 12px;
+  }
+
+  .setup-panel {
+    min-height: 0;
+    margin-bottom: 0;
+    overflow-y: auto;
+    padding: 14px;
+  }
+
+  .setup-actions {
+    flex: none;
+    padding-top: 10px;
+  }
+
+  .game-screen {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .game-header {
+    min-height: 56px;
+    flex: none;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+
+  .game-main {
+    display: grid;
+    min-height: 0;
+    max-width: 1280px;
+    grid-template-columns: minmax(0, 1fr);
+    padding: 8px 12px;
+  }
+
+  .game-primary {
+    display: grid;
+    min-width: 0;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  .poker-table {
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    padding-bottom: 0;
+  }
+
+  .player-seat {
+    width: 8.5rem;
+  }
+
+  .game-controls {
+    max-height: 190px;
+    overflow-y: auto;
+  }
+
+}
+
+/* Offset oval seats keep the side pairs apart, with card widths tied to the table. */
+.poker-table.poker-table-dense { min-height:360px; }
+.poker-table-dense > [draggable] { width:14%; z-index:1; }
+.poker-table-dense .player-seat { width:100%; min-height:60px; padding:6px; }
+.poker-table-dense .player-seat > div:last-child { flex-wrap:wrap; }
+.poker-table-dense > div:first-child {
+  top:12%; right:10%; bottom:12%; left:10%;
+}
+.poker-table-dense > div:first-child > div:last-child {
+  flex-direction:row; top:25%; bottom:25%; left:18%; right:18%;
+  overflow:auto; padding:4px;
+}
+.poker-table-dense > div:first-child > div:last-child > div { min-width:0; max-width:55%; margin:0 4px; }
+@media (max-width:700px) {
+  .poker-table.poker-table-dense { min-width:640px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

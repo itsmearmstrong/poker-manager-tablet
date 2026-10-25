@@ -1,9 +1,10 @@
 import type { ActionRecord, ActionType, GameState, HandHistoryEntry, Round } from '../types/poker';
 import { ROUND_ORDER } from '../types/poker';
 import { newId } from '../utils/id';
-import { assignInitialPositions, firstToActPostflop, rotatePositions } from './dealerManager';
+import { assignInitialPositions, assignPositionsFromDealer, firstToActPostflop, rotatePositions } from './dealerManager';
 import { buildPots, totalPotAmount } from './potManager';
 import { getContestants } from './turnManager';
+import { beginHandAccounting, completedResult } from './handAccounting';
 
 function pushSystemAction(state: GameState, playerId: string, type: ActionType, amount: number) {
   const player = state.players.find((p) => p.id === playerId)!;
@@ -37,11 +38,13 @@ export function isFirstHand(state: GameState): boolean {
 }
 
 /** Deals a new hand: rotates positions, resets per-hand player state, posts blinds/antes. */
-export function startNewHand(state: GameState): GameState {
+export function startNewHand(state: GameState, initialDealerSeat?: number): GameState {
   const next = structuredClone(state);
 
   const positions = isFirstHand(next)
-    ? assignInitialPositions(next.players)
+    ? initialDealerSeat === undefined
+      ? assignInitialPositions(next.players)
+      : assignPositionsFromDealer(next.players, initialDealerSeat)
     : rotatePositions(next.players, next.dealerSeat!);
 
   next.handNumber += 1;
@@ -67,6 +70,7 @@ export function startNewHand(state: GameState): GameState {
     p.inHand = p.status === 'active' && p.chips > 0 && !p.sittingOut;
   }
 
+  beginHandAccounting(next);
   if (next.blinds.ante > 0) {
     for (const p of next.players) {
       if (!p.inHand) continue;
@@ -104,6 +108,7 @@ export function startNewHand(state: GameState): GameState {
 /** Re-deals the current hand from scratch with the same dealer/blinds — all bets are undone. */
 export function restartHand(state: GameState): GameState {
   const next = structuredClone(state);
+  for (const player of next.players) player.chips += player.totalContribution;
   const dealerSeat = next.dealerSeat!;
   const smallBlindSeat = next.smallBlindSeat!;
   const bigBlindSeat = next.bigBlindSeat!;
@@ -121,9 +126,10 @@ export function restartHand(state: GameState): GameState {
     p.currentBet = 0;
     p.totalContribution = 0;
     p.hasActed = false;
-    p.inHand = p.status === 'active' && p.chips > 0 && !p.sittingOut;
+    p.inHand = state.players.find(original => original.id === p.id)?.inHand ?? false;
   }
 
+  if (state.handAccounting) beginHandAccounting(next);
   if (next.blinds.ante > 0) {
     for (const p of next.players) {
       if (!p.inHand) continue;
@@ -190,10 +196,14 @@ export function getHandOutcome(state: GameState): HandOutcome {
 
 /** Awards each pot to its chosen winner(s), splitting evenly with remainder to the earliest winner. */
 export function awardPots(state: GameState, winnersByPotId: Record<string, string[]>): GameState {
+  if (state.status === 'hand_complete' || state.status === 'ended') throw new Error('This hand is already closed.');
   const next = structuredClone(state);
   for (const pot of next.pots) {
     const winnerIds = winnersByPotId[pot.id];
-    if (!winnerIds || winnerIds.length === 0) continue;
+    if (!winnerIds || winnerIds.length === 0 || new Set(winnerIds).size !== winnerIds.length ||
+      winnerIds.some(id => !pot.eligiblePlayerIds.includes(id) || !next.players.some(p => p.id === id))) {
+      throw new Error('Select eligible winners for every pot.');
+    }
 
     const share = Math.floor(pot.amount / winnerIds.length);
     const remainder = pot.amount - share * winnerIds.length;
@@ -228,6 +238,7 @@ export function finalizeHand(state: GameState): GameState {
   const next = structuredClone(state);
 
   const entry: HandHistoryEntry = {
+    lifetime: completedResult(next, Date.now()),
     handNumber: next.handNumber,
     dealerSeat: next.dealerSeat!,
     smallBlindSeat: next.smallBlindSeat!,
@@ -245,7 +256,7 @@ export function finalizeHand(state: GameState): GameState {
           playerId: p.id,
           name: p.name,
           seat: p.seat,
-          startingChips: p.chips + p.totalContribution - amountWon,
+          startingChips: next.handAccounting?.players.find(start=>start.playerId===p.id)?.startingChips ?? p.chips + p.totalContribution - amountWon,
           endingChips: p.chips,
         };
       }),
@@ -257,6 +268,51 @@ export function finalizeHand(state: GameState): GameState {
   }
 
   next.status = 'hand_complete';
+  next.updatedAt = Date.now();
+  return next;
+}
+
+/** Restores a completed hand to the decision immediately before its pot was awarded. */
+export function undoFinalizedHand(state: GameState): GameState | null {
+  if (state.status !== 'hand_complete') return null;
+
+  const completedHand = state.handHistory[state.handHistory.length - 1];
+  if (!completedHand || completedHand.handNumber !== state.handNumber) return null;
+
+  const next = structuredClone(state);
+
+  for (const pot of next.pots) {
+    for (const [playerId, amount] of Object.entries(pot.amountWon ?? {})) {
+      const player = next.players.find((candidate) => candidate.id === playerId);
+      if (player) player.chips -= amount;
+    }
+    delete pot.winnerIds;
+    delete pot.amountWon;
+  }
+
+  next.handHistory.pop();
+  for (const snapshot of completedHand.playerSnapshots) {
+    const player = next.players.find((candidate) => candidate.id === snapshot.playerId);
+    if (player) player.status = 'active';
+  }
+
+  next.status = 'in_progress';
+  if (next.currentRound === 'showdown') {
+    next.currentPlayerSeat = null;
+  } else {
+    const finalAction = next.actionHistory[next.actionHistory.length - 1];
+    if (!finalAction || finalAction.type !== 'fold') return null;
+
+    const foldingPlayer = next.players.find((player) => player.id === finalAction.playerId);
+    if (!foldingPlayer) return null;
+
+    foldingPlayer.folded = false;
+    foldingPlayer.hasActed = false;
+    next.currentPlayerSeat = foldingPlayer.seat;
+    next.actionHistory.pop();
+    next.pots = buildPots(next.players);
+  }
+
   next.updatedAt = Date.now();
   return next;
 }
